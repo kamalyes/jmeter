@@ -2,7 +2,7 @@ version: '3'
 
 services:
   jmeter-master:
-    image: kamalyes/jmeter:v1.0.0
+    image: kamalyes/jmeter:jdk8-slim
     command: master
     container_name: jmeter-master
     tty: true
@@ -14,7 +14,7 @@ services:
       - jmeter-network
 
   jmeter-slave1:
-    image: kamalyes/jmeter:v1.0.0
+    image: kamalyes/jmeter:jdk8-slim
     command: server
     container_name: jmeter-slave1
     tty: true
@@ -27,7 +27,7 @@ services:
       - master
   
   jmeter-slave2:
-    image: kamalyes/jmeter:v1.0.0
+    image: kamalyes/jmeter:jdk8-slim
     command: server
     container_name: jmeter-slave2
     tty: true

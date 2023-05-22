@@ -197,10 +197,10 @@ server.rmi.ssl.disable=true
 
 ### 4、镜像生成
 
-生成基础镜像`kamalyes/jmeter:v1.0.0`，命令如下：
+生成基础镜像`kamalyes/jmeter:jdk8-slim`，命令如下：
 
 ```bash
-docker build -t kamalyes/jmeter:v1.0.0 . 
+docker build -t kamalyes/jmeter:jdk8-slim . 
 ```
 
 四、执行压测
@@ -215,7 +215,7 @@ version: '3'
 
 services:
   master:
-    image: kamalyes/jmeter:v1.0.0
+    image: kamalyes/jmeter:jdk8-slim
     command: master
     container_name: jmeter-master # 容器名称
     tty: true
@@ -227,7 +227,7 @@ services:
       - jmeter-network
 
   server:
-    image: kamalyes/jmeter:v1.0.0
+    image: kamalyes/jmeter:jdk8-slim
     command: server
     container_name: jmeter-slave # 容器名称
     tty: true
