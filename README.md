@@ -1,314 +1,492 @@
-一、概述
-----
+[![Docker Build](https://github.com/kamalyes/docker-jmeter/actions/workflows/build-dockerhub.yml/badge.svg)](https://github.com/kamalyes/docker-jmeter/actions/workflows/build-dockerhub.yml)
 
-单个 `JMeter` 实例可能无法产生足够的负载来对应用程序进行压力测试，就如`jmeter`[官网所示](https://jmeter.apache.org/usermanual/remote-test.html)，一个 `JMeter`实例将能够控制多个远程 `JMeter` 实例对应用程序进行更大的负载测试。 `JMeter` 使用 Java RMI [远程方法调用] 与分布式网络中的对象进行交互。
+# Docker-JMeter
 
-JMeter 的宿主机`master`及从属机`slave`之间的通信，如下图所示。
+You can find image on [Docker Hub](https://hub.docker.com/r/kamalyes/jmeter)
 
-![](https://raw.githubusercontent.com/kamalyes/image-bed/master/snap/jm-master-slave-2.png)
+# Quick reference
 
-如图所示，从属机`slave`需要开通两个端口
+- **Where to get help**:
+  - [Issues](https://github.com/kamalyes/docker-jmeter/issues)
+  - [Discussions](https://github.com/kamalyes/docker-jmeter/discussions)
+  - [Documentation](https://github.com/kamalyes/docker-jmeter)
 
-```bash
-#slave机器需要开通的端口
-Server_port=1099
-server.rmi.localport=50000
+## Image version
+
+- [`latest`, `5.5`, `5.5-11-jre`,`5.5.0`, `5.5.0-11-jre`](https://github.com/kamalyes/docker-jmeter/blob/v2/Dockerfile)
+- [`latest-11-jdk`, `5.5-11-jdk`,`5.5.0-11-jdk`](https://github.com/kamalyes/docker-jmeter/blob/v2/Dockerfile)
+- [`latest-plugins`, `5.5-plugins`, `5.5-plugins-11-jre`, `5.5.0-plugins`, `5.5.0-plugins-11-jre`](https://github.com/kamalyes/docker-jmeter/blob/v2/Dockerfile)
+- [`latest-plugins-11-jdk`, `5.5-plugins-11-jdk`, `5.5.3-plugins-11-jdk`](https://github.com/kamalyes/docker-jmeter/blob/v2/Dockerfile)
+- [`5.4`, `5.4-11-jre`,`5.4.3`, `5.4.3-11-jre`](https://github.com/kamalyes/docker-jmeter/blob/v2/Dockerfile)
+- [`5.4-11-jdk`,`5.4.3-11-jdk`](https://github.com/kamalyes/docker-jmeter/blob/v2/Dockerfile)
+- [`5.4-plugins`, `5.4-plugins-11-jre`, `5.4.3-plugins`, `5.4.3-plugins-11-jre`](https://github.com/kamalyes/docker-jmeter/blob/v2/Dockerfile)
+- [`5.4-plugins-11-jdk`, `5.4.3-plugins-11-jdk`](https://github.com/kamalyes/docker-jmeter/blob/v2/Dockerfile)
+
+## Features
+
+1. Smallest size with ~110MB.
+2. Two versions: Native JMeter version and JMeter version with pre-configured plugin manager.
+3. Timeout for execution. After the timeout, docker will be stopped, even if test is not finished. This is helpful to force stop JMeter docker after a timeout.
+4. Download plugin with maven dependencies format.
+5. Download plugin with list of URLs.
+6. Download plugin with plugin manager (Only plugins versions).
+7. Use plugins from folders.
+8. Check JMX Test (Only plugins versions)
+9. Split CSV Data on multi nodes.
+10. Execute pre/post test shell scripts.
+11. Separate Project configuration from node configuration, to separate configuration from execution team and developer teams.
+12. Isolate output folder (logs, jtl files, html report).
+13. Any JMeter parameter can be used in arguments.
+14. No limitation is introduced by this image, JMeter can be used directly, if custom input parameters are not used.
+15. A delay can be performed using the check on the existence of a file.
+16. Monitoring Jmx with Jolokia (Work only with JDK image).
+
+## Content
+
+- [Docker-JMeter](#docker-jmeter)
+- [Quick reference](#quick-reference)
+  - [Image version](#image-version)
+  - [Features](#features)
+  - [Content](#content)
+- [Image Variants](#image-variants)
+  - [`jmeter:<jmeter-version>-plugins-*`](#jmeterjmeter-version-plugins-)
+- [Folder structure](#folder-structure)
+  - [Image Folder structure](#image-folder-structure)
+  - [Project folder structure](#project-folder-structure)
+  - [User Folder structure](#user-folder-structure)
+  - [Configuration](#configuration)
+- [Exposed Port](#exposed-port)
+- [Plugins installation](#plugins-installation)
+  - [Download plugins with Maven format](#download-plugins-with-maven-format)
+  - [Download Plugins dependencies with Maven format](#download-plugins-dependencies-with-maven-format)
+  - [Download dependencies with zip format](#download-dependencies-with-zip-format)
+  - [Download dependencies automatically with plugin manager](#download-dependencies-automatically-with-plugin-manager)
+  - [Download dependencies list with plugin manager](#download-dependencies-list-with-plugin-manager)
+  - [Use plugins and dependencies from project or user folder](#use-plugins-and-dependencies-from-project-or-user-folder)
+  - [Use plugins and dependencies as additional lib](#use-plugins-and-dependencies-as-additional-lib)
+- [Test plan check](#test-plan-check)
+- [Split CSV files](#split-csv-files)
+- [Timezone](#timezone)
+- [JMX Monitoring (Jolokia)](#jmx-monitoring-jolokia)
+- [Examples](#examples)
+  - [Change JVM Memory size](#change-jvm-memory-size)
+  - [Use additional properties files](#use-additional-properties-files)
+  - [Use timeout for JMeter execution](#use-timeout-for-jmeter-execution)
+  - [Execute before-test.sh/after-test.sh only on master node](#execute-before-testshafter-testsh-only-on-master-node)
+  - [Generate JTL, HTML report and log file](#generate-jtl-html-report-and-log-file)
+  - [Using additional raw JMeter parameter](#using-additional-raw-jmeter-parameter)
+  - [Using raw JMeter parameter](#using-raw-jmeter-parameter)
+  - [Using wait to be Ready](#using-wait-to-be-ready)
+- [Best Practice](#best-practice)
+
+# Image Variants
+
+The `JMeter` images come in many flavors, each designed for a specific use case.
+The images version are based on component used to build image:
+
+1. **JMeter Version**: 5.5.0 -> default for 5.5.
+2. **JVM Version**: e.g.: (-11-jre, default for 11-jre),a nd default JVM is `eclipse-temurin`.
+3. **plugins** : Pre-installed [plugins manager](https://jmeter-plugins.org/wiki/PluginsManagerAutomated/) and [test plan check tool](https://jmeter-plugins.org/wiki/TestPlanCheckTool/). This will provide the image with the feature to check JMX file and download plugins with plugin manager.
+
+## `jmeter:<jmeter-version>-plugins-*`
+
+This is the image containing pre-installed [plugins manager](https://jmeter-plugins.org/wiki/PluginsManagerAutomated/) and [test plan check tool](https://jmeter-plugins.org/wiki/TestPlanCheckTool/). This will provide the image with the feature to check JMX file and download plugins with plugin manager.
+
+# Folder structure
+
+## Image Folder structure
+
+| Folder/files                      | Environnement variable  | Description                                                                                                                                                                                                                                      |
+| --------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/opt/apache-jmeter`              | `JMETER_HOME`           | Installation of JMeter                                                                                                                                                                                                                           |
+| `/jmeter/additional/lib`          | `JMETER_ADDITIONAL_LIB` | Additional lib for JMeter folder using property [plugin_dependency_paths](https://jmeter.apache.org/usermanual/properties_reference.html#classpath)                                                                                              |
+| `/jmeter/additional/lib/ext`      | `JMETER_ADDITIONAL_EXT` | Additional plugins for JMeter folder using property [search_paths](https://jmeter.apache.org/usermanual/properties_reference.html#classpath)                                                                                                     |
+| `/jmeter/project`                 | `PROJECT_PATH`          | Project folder, where JMX file should be present.                                                                                                                                                                                                |
+| `/jmeter/workspace`               | `WORKSPACE_TARGET`      | If duplicate project folder by ( `$CONF_COPY_TO_WORKSPACE` ) is chosen, this will be the target folder. `$WORKSPACE_PATH` will be the workspace folder depending on duplicating project or not it will be `$WORKSPACE_TARGET` or `$PROJECT_PATH` |
+| `/jmeter/user`                    | `USER_PATH`             | Second folder to be used to configure project execution.                                                                                                                                                                                         |
+| `/jmeter/out`                     | `OUTPUT_PATH`           | Base output folder                                                                                                                                                                                                                               |
+| `$OUTPUT_PATH/jtl`                | `OUTPUT_JTL_PATH`       | Default JTL destination folder                                                                                                                                                                                                                   |
+| `$OUTPUT_PATH/log`                | `OUTPUT_LOG_PATH`       | Default log destination folder                                                                                                                                                                                                                   |
+| `$OUTPUT_PATH/csv`                | `OUTPUT_CSV_PATH`       | Default divided csv destination folder, only for debugging.                                                                                                                                                                                      |
+| `$OUTPUT_PATH/dashboard`          | `OUTPUT_REPORT_PATH`    | Default Report base folder                                                                                                                                                                                                                       |
+| `/opt/jolokia/jolokia.properties` | `JOLOKIA_CONFIG`        | Jolokia configuration file : <https://jolokia.org/reference/html/agents.html#agents-jvm>                                                                                                                                                         |
+
+## Project folder structure
+
+| Folder/files                                    | Description                                                                                                                                     |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib`                                           | lib folder, files in this folder will be copied to $JMETER_HOME/lib                                                                             |
+| `plugins`                                       | plugins folder, files in this folder will be copied to $JMETER_HOME/lib/ext                                                                     |
+| `dependencies/url.txt`                          | URLs in this file will be download and extracted to $JMETER_HOME                                                                                |
+| `dependencies/settings.xml`                     | settings.xml used by maven, if there is any need to not authentication for maven repository or a custom one                                     |
+| `dependencies/plugins-lib-dependencies.xml`     | Dependencies plugins, jar present in this file will be copied to folder "lib" in JMeter.                                                        |
+| `dependencies/plugins-lib-ext-dependencies.xml` | Plugins, jar present in this file will be copied to folder "lib/ext" in JMeter.                                                                 |
+| `scripts/after-test.sh`                         | This script will be executed after JMeter test ends. To be executed after test in slave, JMeter should be stopped after test wth `$JMETER_EXIT` |
+| `scripts/before-test.sh`                        | This script will be executed before JMeter starts                                                                                               |
+| `jmeter.properties`                             | default value properties file.                                                                                                                  |
+
+Example of project folder: (<https://github.com/kamalyes/docker-jmeter/tree/v2/tests/projects/sample1>)
+
+## User Folder structure
+
+Same as project folder, the only different JMX file is not used from this folder.
+
+Example of User folder: (<https://github.com/kamalyes/docker-jmeter/tree/v2/tests/users/user1>)
+
+## Configuration
+
+This environment variable are input to configure JMeter and execution:
+
+| Environment variables                    | default value       | Description                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONF_SKIP_PLUGINS_INSTALL`              | `false`             | Skip plugin installation from maven, and url.txt and folder.                                                                                                                                                                                                                                                                                                                     |
+| `CONF_SKIP_PRE_ACTION`                   | `false`             | Skip Execution of after-test.sh                                                                                                                                                                                                                                                                                                                                                  |
+| `CONF_SKIP_POST_ACTION`                  | `false`             | Skip Execution of before-test.sh                                                                                                                                                                                                                                                                                                                                                 |
+| `CONF_COPY_TO_WORKSPACE`                 | `false`             | Copy project to `$WORKSPACE_TARGET`, before executing test, this feature can be used with `$CONF_CSV_SPLIT` to not change file on project folder which can be shared with multiple slave.                                                                                                                                                                                        |
+| `CONF_WITH_JOLOKIA`                      | `false`             | Enable Jolokia for JMX monitoring, This feature work only with JDK version                                                                                                                                                                                                                                                                                                        |
+| `CONF_EXEC_IS_SLAVE`                     | `false`             | True, to be slave node, this will add " --server " as argument for JMeter, this variable can be also used on scripts to choose if action can be executed also on slave or only master.                                                                                                                                                                                           |
+| `CONF_EXEC_WORKER_COUNT`                 | `1`                 | Total JMeter slave count. This value is used only to split CSV file.                                                                                                                                                                                                                                                                                                             |
+| `CONF_EXEC_WORKER_NUMBER`                | `1`                 | Number of current slave. This value is used only to split CSV file.                                                                                                                                                                                                                                                                                                              |
+| `CONF_EXEC_WAIT_BEFORE_TEST`             | `0`                 | Wait in second before start JMeter.                                                                                                                                                                                                                                                                                                                                              |
+| `CONF_EXEC_WAIT_AFTER_TEST`              | `1`                 | Wait in second after stopping JMeter.                                                                                                                                                                                                                                                                                                                                            |
+| `CONF_EXEC_TIMEOUT`                      | `2592000`           | Default timeout in second, after this duration JMeter and docker container wil be stopped, default (30 days)                                                                                                                                                                                                                                                                     |
+| `CONF_READY_WAIT_FILE`                   |                     | The file to wait until exists to start execution, if file start with `/` the file will be considered as absolute path, if not it will be considered as relative path to `PROJECT_PATH`, this option is useful when we need to start container than copy project to container without using mount specially on Kubernetes.                                                        |
+| `CONF_READY_WAIT_TIMEOUT`                | `1200`              | Default timeout for waiting the ready file to be present in seconds                                                                                                                                                                                                                                                                                                              |
+| `CONF_CSV_SPLIT`                         | `false`             | Split csv file on `$CONF_EXEC_WORKER_COUNT` and take the part `CONF_EXEC_WORKER_COUNT`                                                                                                                                                                                                                                                                                           |
+| `CONF_CSV_SPLIT_PATTERN`                 | `**`                | Pattern used to choose csv file to be divided, a default filter (\*.csv) is already used so only CSV files are concerned by this split, the pattern is applied relative path for file, so patten can be applied on folder or file name. (e.g.: "./data/\*.csv" for csv file in "data" folder, "./data/*_split.csv" for csv files in "data" folder with suffix "*_split.csv") |
+| `CONF_CSV_WITH_HEADER`                   | `true`              | Split CSV file has header or not.                                                                                                                                                                                                                                                                                                                                                |
+| `CONF_CSV_DIVIDED_TO_OUT`                | `true`              | Copy divided files to `$OUTPUT_CSV_PATH`, only for debugging.                                                                                                                                                                                                                                                                                                                    |
+| `JMETER_JMX`                             |                     | JMX test file.                                                                                                                                                                                                                                                                                                                                                                   |
+| `JMETER_EXIT`                            | `false`             | Force exit after test on all node.                                                                                                                                                                                                                                                                                                                                               |
+| `JMETER_PROPERTIES_FILES`                | `jmeter.properties` | List of properties file to be used as additional properties, (e.g. :"size.properties preprod.properties"). This list will be added from project and user folder if file is present.                                                                                                                                                                                              |
+| `JMETER_JTL_FILE`                        |                     | Name of JTL result file, will be saved in folder `$OUTPUT_JTL_PATH`                                                                                                                                                                                                                                                                                                              |
+| `JMETER_LOG_FILE`                        | `jmeter.log`        | JMeter log file name `$OUTPUT_LOG_PATH`                                                                                                                                                                                                                                                                                                                                          |
+| `JMETER_REPORT_NAME`                     |                     | HTML report name, will be saved in folder `$OUTPUT_REPORT_PATH`                                                                                                                                                                                                                                                                                                                  |
+| `JMETER_JVM_ARGS`                        |                     | JMeter JVM arguments, can configure JVM with Xmx, Xms, ...                                                                                                                                                                                                                                                                                                                       |
+| `JMETER_JVM_EXTRA_ARGS`                  |                     | A second Parameter to configure JVM arguments.                                                                                                                                                                                                                                                                                                                                   |
+| `JMETER_DEFAULT_ARGS`                    | `--nongui`          | A default arguments, by default JMeter is executed in a non-GUI mode (headless mode).                                                                                                                                                                                                                                                                                            |
+| `JMETER_CHECK_ONLY`                      | `false`             | Don't execute test but only do a check with [test plan check tool](https://jmeter-plugins.org/wiki/TestPlanCheckTool/), available only on (variant plugins)                                                                                                                                                                                                                      |
+| `JMETER_PLUGINS_MANAGER_INSTALL_LIST`    |                     | Install list of plugins using [plugins manager](https://jmeter-plugins.org/wiki/PluginsManagerAutomated/) (e.g. : "jpgc-json=2.2,jpgc-casutg=2.0"),                                                                                                                                                                                                                              |
+| `JMETER_PLUGINS_MANAGER_INSTALL_FOR_JMX` | `false`             | Install needed plugins for jmx file automatically using [plugins manager](https://jmeter-plugins.org/wiki/PluginsManagerAutomated/)                                                                                                                                                                                                                                              |
+
+# Exposed Port
+
+1. The exposed RMI port is 1099. See doc on <https://jmeter.apache.org/usermanual/remote-test.html>
+2. Jolokia port 8778.
+
+# Plugins installation
+
+Plugins can be provided in many ways.
+We distinguish two types of lib dependencies, the plugins and plugins dependencies. In JMeter they are in different folders lib/ext and lib respectively.
+
+## Download plugins with Maven format
+
+In `project folder` or `user folder` put maven xml file `dependencies/plugins-lib-ext-dependencies.xml`, use exclusion with \* to not download dependencies of JARs, only JAR referenced in file will be used.
+JAR from this file will be downloaded to folder `$JMETER_HOME/lib/ext`.
+e.g.:
+
+```xml
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.kamalyes.jmeter.docker</groupId>
+  <version>1.0.0</version>
+  <packaging>pom</packaging>
+
+  <artifactId>sample-lib-ext</artifactId>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.blazemeter</groupId>
+      <artifactId>jmeter-plugins-random-csv-data-set</artifactId>
+      <version>0.8</version>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>kg.apc</groupId>
+      <artifactId>jmeter-plugins-graphs-additional</artifactId>
+      <version>2.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+  </dependencies>
+</project>
 ```
 
-在宿主机`master`上打开一个端口，让从属机`slave`将压测的结果发送给宿主机`master`。
+## Download Plugins dependencies with Maven format
 
-```bash
-#master机器需要开通的端口
-client.rmi.localport=60000
+In `project folder` or `user folder` put maven XML file `dependencies/plugins-lib-dependencies.xml`, use exclusion with \* to not download dependencies of JARS, only JAR referenced in file will be used.
+JAR from this file will be downloaded to folder `$JMETER_HOME/lib`.
+Same format used by [plugins](#download-plugins-with-maven-format)
+
+## Download dependencies with zip format
+
+In `project folder` or `user folder` put file `dependencies/url.txt` with list of ZIP URLs. These ZIPs use the same JMeter structure with lib and lib/ext folder. The download ZIP links from website <https://jmeter-plugins.org/> are compatible with this file.
+
+**N.B.**: ZIP files from <https://jmeter-plugins.org/> contain also JMeter plugin manager and other common JARs, these JARs can be duplicated when using multiple plugins.
+
+## Download dependencies automatically with plugin manager
+
+Use [version with plugins](#jmeterjmeter-version-plugins-) to have pre-configured plugin manager.
+Use env variable JMETER_PLUGINS_MANAGER_INSTALL_FOR_JMX to download plugin before starting JMeter with [plugins manager](https://jmeter-plugins.org/wiki/PluginsManagerAutomated/):
+
+```sh
+docker run --rm \
+-v ${PWD}/tests/projects/sample1/:/jmeter/project \
+-e JMETER_JMX="test-plan.jmx" \
+-e JMETER_PLUGINS_MANAGER_INSTALL_FOR_JMX="true" \
+kamalyes/jmeter:latest-plugins
 ```
 
-通过在多台从属机`slave`上运行多个 `JMeter` 实例作为服务器，这样就可以根据需要生成尽可能多的负载。
+## Download dependencies list with plugin manager
 
-![](https://raw.githubusercontent.com/kamalyes/image-bed/master/snap/JMeter-Docker-Basic-New-Page-1.png)
+Use [version with plugins](#jmeterjmeter-version-plugins-) to have pre-configured plugin manager.
+Use env variable JMETER_PLUGINS_MANAGER_INSTALL_LIST to download plugin before starting JMeter with [plugins manager](https://jmeter-plugins.org/wiki/PluginsManagerAutomated/):
 
-二、执行逻辑
-------
-
-### 1、`Docker`的作用
-
-Docker就像一个管理者，它能够将软件及其所有依赖项打包成一个容器运行。
-
-首先，我们可以把将要部署的软件打包成一个Docker image(镜像)，并将其部署在安装了docker的机器上，它可以将软件与硬件分开，应用程序都可以在任何计算
-
-机上运行，不管运行的计算机有什么自定义设置不同于编写和测试代码的机器。这样我们不再关注硬件，可以快速部署应用。
-
-### 2、`Docker`在`JMeter`分布式测试中扮演的角色
-
-如果要根据上图所示，进行分布式负载测试就需要`1个master，N个slave`来生成大量的负载。每个`JMeter slave`都需要安装相同(指定)版本的`Java`和`JMeter`。
-
-应该打开指定的端口并运行`JMeter`服务器，准备就绪并等待主服务器发送指令。
-
-手动设置三五台计算机看起来很容易，那如果我们必须对50/100/1000台计算机执行此操作呢？还可以想象如果将来需要在所有机器上升级`JMeter`版本或者`Java`版本会发生什么？可以想象工作量得有多大，至此，Docker就该派上用场了。
-
-### 3、分布式前置条件
-
-**这些条件使用于所有机器，包括master和slave的机器：**
-
-*   运行相同版本的JMeter
-    
-*   使用相同的java版本
-    
-*   有基于SSL的RMI的有效密钥库，或者禁用SSL。（本文举例中是采用的禁用SSL）
-    
-```bash
-server.rmi.ssl.disable=true
-```
-    
-*   都在一个网络
-    
-*   关闭防火墙
-    
-
-### 4、如何做
-
-*   通常，我们会在名为 **Dockerfile** 的文件中配置`JMeter`分布式测试的整个基础架构，检查dockerfile并阅读注释以了解每个步骤的作用，最后生成包含`JMeter`、`java`等工具集合的镜像。
-*   然后，再根据生成的基础镜像，开始部署`master`机器及`slave`机器。
-*   接着，在`master`机器执行压测命令。
-
-三、基础镜像
-------
-
-在分布式压测中，所有的环境都应该使用相同版本的Java、JMeter、plugins等。master和slave之间唯一区别是所公开的端口和正在运行的进程。因此，让我们创建一个Dockerfile，该文件具有master和slave的所有通用步骤，称其为 **jmbase** 基础镜像，我们将需要执行以下操作来构建基本映像:
-
-*   需要Java8 –因此，让openjdk-8-jre slim版本，大小保持尽可能小。
-*   需要安装公共的工具包，例如wget、net-tools、telnet、vim等。
-*   需要最新版本的JMeter，为版本创建变量，以便后续维护。
-*   安装需要的插件。
-*   添加一个包含测试用例的文件夹。
-
-### 1、基础镜像`Dockerfile`
-
-这是`Dockerfile`文件，作用是生成基础镜像
-
-```bash
-FROM openjdk:8-jre-slim
-
-# jmeter版本
-ARG JMETER_VERSION=5.5
-
-# 默认工作区
-ENV APP_WORKSPCE=/opt
-
-# 安装必要软件
-RUN apt-get clean && \
-  apt-get update && \
-  apt-get -qy install \
-  vim \
-  wget \
-  curl \
-  telnet \
-  iputils-ping \
-  net-tools
-
-# 防止vim安装失败
-RUN apt-get update --fix-missing && apt-get install -y vim --fix-missing
-
-
-#jmeter环境变量
-ENV JMETER_HOME=/jmeter
-ENV PATH=$JMETER_HOME/bin:$PATH
-ENV CLASSPATH=$JMETER_HOME/lib/ext/ApacheJMeter_core.jar:$JMETER_HOME/lib/jorphan.jar:$CLASSPATH
-
-# 安装jmeter
-RUN mkdir -p $APP_WORKSPCE \
-  && cd $APP_WORKSPCE \
-  #	国内镜像高速下载jmeter
-  && wget https://mirrors.aliyun.com/apache/jmeter/binaries/apache-jmeter-$JMETER_VERSION.tgz \
-  #	官方下载jmeter
-  #	&& wget https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-$JMETER_VERSION.tgz \
-  && tar -xvzf apache-jmeter-$JMETER_VERSION.tgz \
-  && mv apache-jmeter-$JMETER_VERSION $JMETER_HOME \
-  && rm apache-jmeter-$JMETER_VERSION.tgz
-
-WORKDIR $JMETER_HOME
-
-#脚本复制到当前路径
-COPY ./config/user.properties bin/user.properties
-COPY ./scripts/install_plugin_manager.sh .
-COPY ./scripts/entrypoint.sh .
-
-RUN chmod +x install_plugin_manager.sh entrypoint.sh \
-  && mkdir -p lib/ext \ 
-  && ./install_plugin_manager.sh
-
-EXPOSE 1099 50000 60000 
-ENTRYPOINT ["sleep", "36000"]
+```sh
+docker run --rm \
+-v ${PWD}/tests/projects/sample1/:/jmeter/project \
+-e JMETER_JMX="test-plan.jmx" \
+-e JMETER_PLUGINS_MANAGER_INSTALL_LIST="jpgc-json=2.2,jpgc-casutg=2.0" \
+kamalyes/jmeter:latest-plugins
 ```
 
-### 2、容器启动运行脚本
+## Use plugins and dependencies from project or user folder
 
-这是`entrypoint.sh`脚本，在容器生成时，根据容器启动时的命令，输入**master**或者**server**，选择打开对应的端口号。**jmeter-server**运行的时候公开端口1099和50000。
+Before starting JMeter, the folders `/jmeter/project/plugins` and `/jmeter/user/plugins` are copied to `$JMETER_HOME/lib/ext`, and folders `/jmeter/project/lib` and `/jmeter/user/lib` are copied to `$JMETER_HOME/lib`.
 
-```bash
-#!/bin/bash
-set -e
-echo "Starting entrypoint!"
-pwd
-case $1 in
-    master)
-        tail -f /dev/null # 防止容器启动后退出
-        ;;
-    server)
-        $JMETER_HOME/bin/jmeter-server \
-            -Dserver.rmi.localport=50000 \
-            -Dserver_port=1099
-        ;;
-    *)
-        echo "Sorry, this option doesn't exist!"
-        ;;
-esac
-exec "$@"
+## Use plugins and dependencies as additional lib
+
+Folder `/jmeter/additional/lib` is used as additional lib folder for JMeter and `/jmeter/additional/lib/ext` is used as additional folder for lib/ext folder in JMeter, files on those folders are not copied.
+
+Example of use:
+
+On the host machine prepare folder `/mylib` with additional libraries and a sub folder ext with plugins:
+
+```sh
+docker run --rm \
+-v ${PWD}/tests/projects/sample1/:/jmeter/project \
+-v /mylib/:/jmeter/additional/lib  \
+-e JMETER_JMX="test-plan.jmx" \
+kamalyes/jmeter:latest-plugins
 ```
 
-### 3、安装插件
+# Test plan check
 
-这是`install_plugin_manager.sh`脚本，在容器生成时，安装插件
+Use [version with plugins](#jmeterjmeter-version-plugins-) to have pre-configured test plan check.
+[Test plan check tool](https://jmeter-plugins.org/wiki/TestPlanCheckTool/) can verify test plan without executing test.
 
-```bash
-#!/bin/bash
+For example:
 
-CMD_RUNNER_URL="http://search.maven.org/remotecontent?filepath=kg/apc/cmdrunner/2.3/cmdrunner-2.3.jar"
-PLUGIN_MANAGER_URL="https://jmeter-plugins.org/get/"
-
-# DOWNLOAD RUNNER
-wget -O "lib/cmdrunner-2.3.jar" $CMD_RUNNER_URL
-
-# DOWNLOAD MANAGER
-wget -O "lib/ext/jmeter-plugins-manager.jar" $PLUGIN_MANAGER_URL
-
-# GENERATING SCRIPTS
-java -cp lib/ext/jmeter-plugins-manager.jar org.jmeterplugins.repository.PluginManagerCMDInstaller
+```sh
+docker run --rm \
+-v ${PWD}/tests/projects/sample1/:/jmeter/project \
+-e JMETER_JMX="test-plan.jmx" \
+-e JMETER_CHECK_ONLY="true" \
+kamalyes/jmeter:latest-plugins
 ```
 
-这是`user.properties`配置文件，在容器生成时，安装好`jmeter`后，把`jmeter`的`user.properties`配置文件替换一下。
+**N.B** Test plan check can't detect plugins in additional folder, so [Use plugins and dependencies as additional lib.](#use-plugins-and-dependencies-as-additional-lib) will not work with test check even it work with execution.
 
-```bash
-#将注释打开，并且将值修改成true，就会打开该条记录，JMeter就会将该条信息输出到我们指定的.jtl文件中。
-jmeter.save.saveservice.default_delimiter=\t
-jmeter.save.saveservice.print_field_names=true
-#关闭SSL传输
-server.rmi.ssl.disable=true
+# Split CSV files
+
+Often we need that JMeter cluster doesn't use duplicated data (like logged user, ...). This can be achieved by splitting CSV files on the number of slaves.
+
+To do this you can follow the following steps:
+
+1. You have to identify CSV files that you want to be divided using a pattern `CONF_CSV_SPLIT_PATTERN`, for example use a prefix on all files (*_split.csv: login_split.csv)
+1. You have to know the total number of slaves `CONF_EXEC_WORKER_COUNT` and identify each slave by number `CONF_EXEC_WORKER_NUMBER`.
+1. CSV file will be replaced by the divided one. If project folder should not be modified, use option copy to workspace space `CONF_COPY_TO_WORKSPACE`, to duplicate project folder before starting execution.
+1. You can also copy the divided files to out folder for debugging reasons to check divided data `CONF_CSV_DIVIDED_TO_OUT`
+
+For example:
+
+```sh
+docker run --rm \
+-v ${PWD}/tests/projects/sample1/:/jmeter/project \
+-e JMETER_JMX="test-plan.jmx" \
+-e CONF_COPY_TO_WORKSPACE="true" \
+-e CONF_EXEC_WORKER_COUNT="5" \
+-e CONF_EXEC_WORKER_NUMBER="1" \
+-e CONF_CSV_SPLIT_PATTERN="**_split.csv"
+-e CONF_CSV_DIVIDED_TO_OUT="true" \
+kamalyes/jmeter:latest
 ```
 
-### 4、镜像生成
+# Timezone
 
-生成基础镜像`kamalyes/jmeter:v1.0.0`，命令如下：
+Default timezone is GMT, if you need to change timezone to have correct time on jmeter log, you can set environment variables **TZ**, list of timezone are available here <https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>.
 
-```bash
-docker build -t kamalyes/jmeter:v1.0.0 . 
+Example to change timezone :
+
+```sh
+docker run --rm \
+-v ${PWD}/tests/projects/sample1/:/jmeter/project \
+-e JMETER_JMX="basic-plan.jmx" \
+-e TZ="Africa/Casablanca" \
+kamalyes/jmeter:latest
 ```
 
-四、执行压测
-------
+Timezone can also changed in file before-test.sh
 
-### 1、启动容器
+```sh
 
-这是`docker-compose.yml`文件，基础镜像`kamalyes/jmeter:v1.0.0`生成后，使用`docker-compose`命令启动容器，并执行负载均衡。
+export TZ="Africa/Casablanca"
 
-```bash
-version: '3'
-
-services:
-  master:
-    image: kamalyes/jmeter:v1.0.0
-    command: master
-    container_name: jmeter-master # 容器名称
-    tty: true
-    ports:
-      - 60000:60000
-    volumes:
-      - "../sample_test/:/jmeter/sample_test/"
-    networks:
-      - jmeter-network
-
-  server:
-    image: kamalyes/jmeter:v1.0.0
-    command: server
-    container_name: jmeter-slave # 容器名称
-    tty: true
-    ports:
-      - 1099:1099
-      - 50000:50000
-    networks:
-      - jmeter-network
-    depends_on:
-      - master
-
-networks:
-  jmeter-network:
-    driver: bridge
 ```
 
-注意：volumes挂载的目录，此压测脚本是在当前目录，或者上级目录。
+# JMX Monitoring (Jolokia)
 
-使用`docker-compose`命令启动容器，并后台执行。
+Enable Jolokia for Jmx monitoring, on port 8778, it's mandatory to use jdk version image with Jolokia.
 
-```bash
-docker-compose up -d
+```sh
+docker run --rm \
+-p 8778:8778
+-v ${PWD}/tests/projects/sample1/:/jmeter/project \
+-e JMETER_JMX="basic-plan.jmx" \
+-e CONF_WITH_JOLOKIA="true" \
+kamalyes/jmeter:latest-plugins-11-jdk
 ```
 
-### 2、查询slave的IP地址
+# Examples
 
-docker命令启动的容器，可以通过以下命令，查询所有的ip地址
+## Change JVM Memory size
 
-```bash
-docker inspect -f '{{.Name}} => {{.NetworkSettings.IPAddress }}' $(docker ps -aq)
+You can change memory size using `JMETER_JVM_ARGS` or `JMETER_JVM_EXTRA_ARGS`, e.g. :
+
+```sh
+docker run --rm \
+-v ${PWD}/tests/projects/sample1/:/jmeter/project \
+-e JMETER_JMX="basic-plan.jmx" \
+-e JMETER_JVM_ARGS=" -Xmx2G -Xms1G " \
+kamalyes/jmeter:latest
 ```
 
-若是通过docker-compose命令启动的容器，那么查询容器的IP地址
+## Use additional properties files
 
-```bash
-docker inspect -f '{{.Name}} => {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -aq)
-或者
-docker inspect --format='{{.Name}} => {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -aq)
+You can add additional properties files using `JMETER_PROPERTIES_FILES`. Default value is jmeter.properties (If a file *jmeter.properties* is found in [project folder](#project-folder-structure) or in [user folder](#user-folder-structure) it will be added to JMeter execution.).
+
+```sh
+docker run --rm \
+-v ${PWD}/tests/projects/sample1/:/jmeter/project \
+-e JMETER_JMX="test-plan.jmx" \
+-e JMETER_PROPERTIES_FILES="common.properties prepord.properties " \
+kamalyes/jmeter:latest
 ```
 
-查询筛选对应的容器的IP地址，命令如下：
+## Use timeout for JMeter execution
 
-```bash
-docker inspect --format='{{.Name}} - {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(docker ps -aq) | grep "docker-compose-server"
+You can set a timeout for execution by value of `CONF_EXEC_TIMEOUT`. After that timeout JMeter is stopped and after that the container will be stopped also. The timeout is useful on cloud infrastructure when docker container has a cost. If for any reason the test is not started, the slave will shutdown after timeout. Timeout value should be bigger by a good margin than the time needed by the test to not be stopped during execution.
+
+For example: timeout of 1 hour
+
+```sh
+docker run --rm \
+-v ${PWD}/tests/projects/sample1/:/jmeter/project \
+-e JMETER_JMX="test-plan.jmx" \
+-e CONF_EXEC_TIMEOUT="3600" \
+kamalyes/jmeter:latest
 ```
 
-### 3、执行压测
+## Execute before-test.sh/after-test.sh only on master node
 
-进入容器
+before-test.sh/after-test.sh are executed on all nodes, but you can add conditions in a script file to test if a block of code should be executed.
 
-```bash
-docker exec -it docker-compose-master-1 /bin/sh 
+For example: timeout of 1 hour
+
+```sh
+   if [[ "$CONF_EXEC_IS_SLAVE" == "true" ]]; then
+     # Slave block
+     else
+     # Master block
+   fi
+
 ```
 
-执行压测脚本
+## Generate JTL, HTML report and log file
 
-```bash
-jmeter -n -t ../sample/baidu.jmx -l ../sample/data/baidu.jtl -j ../sample/data/baidu.log -R 172.18.0.3,172.18.0.4
+Output base folder is pre-configured as `/jmeter/out`, you can choose name of report `JMETER_REPORT_NAME` which will be stored in `/jmeter/out/dashboard` and JTL file name `JMETER_JTL_FILE` which will be stored in `/jmeter/out/jtl/` and jmeter log file (default jmeter.log) `JMETER_LOG_FILE` which will be stored in `/jmeter/out/log/`.
+
+For example: generate JTL and dashboard with a name chosen as *myreport*
+
+```sh
+docker run --rm \
+-v ${PWD}/tests/projects/sample1/:/jmeter/project \
+-e JMETER_JMX="basic-plan.jmx" \
+-e JMETER_JTL_FILE=out.jtl \
+-e JMETER_LOG_FILE=out.log \
+-e JMETER_REPORT_NAME=myreport \
+kamalyes/jmeter:latest
 ```
 
-若脚本没有挂载到容器，也可以将本地jmeter脚本复制到容器中，命令如下：
+JTL file will be in `/jmeter/out/jtl/out.jtl`, report folder will be in `/jmeter/out/dashboard/myreport` and JMeter log will be in `/jmeter/out/log/out.log`
 
-```bash
-sudo docker exec -i master sh -c 'cat > /jmeter/apache-jmeter-5.5/bin/baidu.jmx' < baidu.jmx
+## Using additional raw JMeter parameter
+
+Arguments passed to docker container are finally passed to JMeter, so you can use any additional arguments
+
+For example: disable RMI SSL, and add custom properties `numberthread`
+
+```sh
+docker run --rm \
+-v ${PWD}/tests/projects/sample1/:/jmeter/project \
+-e JMETER_JMX="basic-plan.jmx" \
+-e JMETER_JTL_FILE=out.jtl \
+-e JMETER_LOG_FILE=out.log \
+-e JMETER_REPORT_NAME=myreport \
+kamalyes/jmeter:latest -Jserver.rmi.ssl.disable=true -Jnumberthread=500
 ```
 
-负载均衡，通过`--scale server=5`我们构建3个server服务
+## Using raw JMeter parameter
 
-```bash
-docker-compose up -d --scale server=3 
+The pre-configured folder structure can be ignored, and JMeter can be used as standard way.
+
+The following arguments will be added by default:
+
+1. `--nongui` from `JMETER_DEFAULT_ARGS`
+2. ' --jmeterlogfile /jmeter/out/log/jmeter.log' from value `JMETER_LOG_FILE`, if `JMETER_LOG_FILE` is empty or a custom `--jmeterlogfile` or `-j` to have new JMeter log file this arguments will be not add to JMeter.
+
+```sh
+docker run --rm \
+-v ${PWD}/tests/projects/sample1/:/myproject \
+kamalyes/jmeter:latest -t /myprojet/test.jmx -Jthread=50 -q /myproject/prop.properties
 ```
 
-重新构建镜像 --force-rm 删除构建过程中的临时容器
+## Using wait to be Ready
 
-```bash
-docker-compose build --force-rm
+Container can be started and wait until ready fie will be present.
+
+The following arguments will be added by default:
+
+1. `--nongui` from `JMETER_DEFAULT_ARGS`
+2. ' --jmeterlogfile /jmeter/out/log/jmeter.log' from value `JMETER_LOG_FILE`, if `JMETER_LOG_FILE` is empty or a custom `--jmeterlogfile` or `-j` to have new JMeter log file this arguments will be not add to JMeter.
+
+```sh
+docker run --name jmeter \
+-e CONF_READY_WAIT_FILE="ready.txt" \
+-e JMETER_JMX="basic-plan.jmx" \
+ kamalyes/jmeter:latest
+
+ #Copy test to container
+ docker cp ${PWD}/tests/projects/sample1/basic-plan.jmx jmeter:/jmeter/project
+
+#Start test by creation of file ready.txt
+ docker exec jmeter touch /jmeter/project/ready.txt
+
 ```
 
-五、参考
-----
+# Best Practice
 
-1、jmeter分布式压测（官方）：[https://jmeter.apache.org/usermanual/remote-test.html](https://jmeter.apache.org/usermanual/remote-test.html)
-
-2、前置条件：[https://www.cnblogs.com/MasterMonkInTemple/p/11978058.html](https://www.cnblogs.com/MasterMonkInTemple/p/11978058.html)
+1. Use container instance by execution.
+2. Force exit container after execution, use `JMETER_EXIT` to force remote exit after test execution.
+3. In environment when container has a cost (like AWS Fargate, Azure container instance, Google cloud run) and there is a risk of JMeter not stopping correctly (for any reason like slaves are started but master fail, ...), than use timeout execution `CONF_EXEC_TIMEOUT` in seconds. Be careful, timeout should be greater than the max duration possible for test.
+4. Adapt memory needed by the JVM using `JMETER_JVM_ARGS` and don't use a huge Memory instance, it's preferable to have smallest one: less than 8GB.
+5. Always use properties to parameterize tests (<https://jmeter.apache.org/usermanual/best-practices.html#parameterising_tests>), than you can save multi pre-configured properties files to be used with `JMETER_PROPERTIES_FILES`.
