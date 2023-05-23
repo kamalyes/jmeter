@@ -1,6 +1,8 @@
 name: Docker Build ⚓
 
-on: [push, pull_request]
+on:
+  release:
+    types: [created]
 
 jobs:
   # Single job now to build Docker Image, run GHC unit tests, and push to DockerHub

@@ -323,7 +323,7 @@ kamalyes/jmeter:latest
 
 # Timezone
 
-Default timezone is GMT, if you need to change timezone to have correct time on jmeter log, you can set environment variables **TZ**, list of timezone are available here <https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>.
+Default timezone is `Asia/Shanghai`, if you need to change timezone to have correct time on jmeter log, you can set environment variables **TZ**, list of timezone are available here <https://en.wikipedia.org/wiki/List_of_tz_database_time_zones>.
 
 Example to change timezone :
 
