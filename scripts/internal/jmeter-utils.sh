@@ -58,7 +58,7 @@ prepare_additional_file_properties() {
 }
 
 #Prapare JTL_ARG
-prepare_JTL_args() {
+prepare_jtl_args() {
    if [ ! -z "$JMETER_JTL_FILE" ]; then
       if [[ $@ == *" -l"* ]] || [[ $@ == "-l"* ]] || [[ $@ == *"--logfile"* ]]; then
          echo "ERROR: JTL file is configured twice using JMETER_JTL_FILE env variable ($JMETER_JTL_FILE), and arguments using -l or --logfile in ($@)" 1>&2

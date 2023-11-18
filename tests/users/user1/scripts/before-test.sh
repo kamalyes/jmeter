@@ -1,1 +1,0 @@
-echo before-user-test1

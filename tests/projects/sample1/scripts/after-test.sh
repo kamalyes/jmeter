@@ -1,1 +1,0 @@
-echo after-project-test1

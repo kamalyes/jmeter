@@ -10,7 +10,7 @@ prepare_exit_args
 #prepare PROPERTIES_ARG
 prepare_additional_file_properties
 #Prapare JTL_ARG
-prepare_JTL_args
+prepare_jtl_args
 #Prapare LOG_ARG
 prepare_log_args
 #Prepare REPORT_ARG

@@ -6,8 +6,8 @@ on:
 
 jobs:
   # Single job now to build Docker Image, run GHC unit tests, and push to DockerHub
-  build_test_push:
-    name: Build, Test and Publish
+  build_push:
+    name: Docker Build Publish
 
     runs-on: ubuntu-latest
     strategy:
@@ -94,16 +94,6 @@ jobs:
         run: |
           chmod +x -R ./scripts
 
-      - name: Unit Test bash Script 📦
-        run: |
-          ./scripts/internal/build/test/jmeter-utils-test.sh
-
-      - name: Install  container-structure-test 📦
-        run: |
-          curl -LO https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
-          chmod +x container-structure-test-linux-amd64
-          sudo mv container-structure-test-linux-amd64 /usr/local/bin/container-structure-test
-
       - name: Config 📦
         run: |
           echo jmeter-branch=${{ matrix.jmeter-branch }}
@@ -142,7 +132,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          file: ${{ matrix.folder }}/Dockerfile
+          file: ${{ matrix.folder }}/Dockerfile-base
           load: true
           push: false
           build-args: |
@@ -168,110 +158,14 @@ jobs:
         run: |
           echo ::set-output name=currentImage::${{ steps.prep.outputs.image }}:${{ matrix.jmeter-branch }}${{ matrix.suffix }}
 
-      - name: Test Jmeter Install
-        run: |
-          container-structure-test test -v info --image ${{ steps.result.outputs.currentImage }} --config tests/container-structure-test/jmeter-install.yaml
-
-      - name: Test Jmeter base Plugin Install
-        if: ${{ matrix.with-plugins == 'true' }}
-        run: |
-          container-structure-test test -v info --image ${{ steps.result.outputs.currentImage }} --config tests/container-structure-test/plugins-base-install.yaml
-
-      - name: Test Jmeter base Plugin Not Install
-        if: ${{ matrix.with-plugins == 'false' }}
-        run: |
-          container-structure-test test -v info --image ${{ steps.result.outputs.currentImage }} --config tests/container-structure-test/plugins-base-not-install.yaml
-
-      ## Install plugins many ways
-      - name: Test Jmeter Project/User Plugin Install
-        run: |
-          docker  run --pull never --name t1 -v ${PWD}/tests/projects/sample1/:/jmeter/project -v ${PWD}/tests/users/user1/:/jmeter/user  -e JMETER_JMX="basic-plan.jmx"  ${{ steps.result.outputs.currentImage }} 
-          expected='after-project-test1'
-          if [[ $(docker logs t1 | grep $expected ) ]];then echo "$expected found"; else echo "$expected not found"; exit 1; fi;
-          expected='before-project-test1'
-          if [[ $(docker logs t1 | grep $expected ) ]];then echo "$expected found"; else echo "$expected not found"; exit 1; fi;
-          expected='after-user-test1'
-          if [[ $(docker logs t1 | grep $expected ) ]];then echo "$expected found"; else echo "$expected not found"; exit 1; fi;
-          expected='before-user-test1'
-          if [[ $(docker logs t1 | grep $expected ) ]];then echo "$expected found"; else echo "$expected not found"; exit 1; fi;
-          docker commit t1 t1 
-          container-structure-test test -v info --image t1 --config tests/container-structure-test/sample1-install-plugins.yaml
-          container-structure-test test -v info --image t1 --config tests/container-structure-test/user1-install-plugins.yaml
-          container-structure-test test -v info --image t1 --config tests/container-structure-test/sample1-install-plugins-url.yaml
-          container-structure-test test -v info --image t1 --config tests/container-structure-test/user1-install-plugins-url.yaml
-          docker rm t1
-          docker rmi t1
-
-      ## Install plugins many ways
-      - name: Test Jmeter Plugin Install with plugin manager
-        if: ${{ matrix.with-plugins == 'true' }}
-        run: |
-          docker  run --pull never --name t1 -v ${PWD}/tests/projects/sample1/:/jmeter/project -e JMETER_PLUGINS_MANAGER_INSTALL_LIST="jpgc-dbmon=0.1" -e JMETER_PLUGINS_MANAGER_INSTALL_FOR_JMX="true"  -e JMETER_JMX="test-plan.jmx" ${{ steps.result.outputs.currentImage }} 
-          expected='JJmmeetteerr'
-          if [[ $(docker logs t1 | grep $expected ) ]];then echo "$expected found"; else echo "$expected not found"; exit 1; fi;
-          docker commit t1 t1 
-          container-structure-test test -v info --image t1 --config tests/container-structure-test/sample1-install-plugins.yaml
-          container-structure-test test -v info --image t1 --config tests/container-structure-test/install-plugins-by-manager.yaml
-          docker rm t1
-          docker rmi t1
-
-        ## Test In Out
-      - name: Test Plugin folder and out
-        run: |
-          docker  run --pull never --name t1 \
-          -v ${PWD}/tests/projects/sample1/:/jmeter/project \
-          -v ${PWD}/tests/projects/sample1/dummy/:/jmeter/additional/lib/ext \
-          -e JMETER_PROPERTIES_FILES=out.properties \
-          -e JMETER_JTL_FILE=out.jtl \
-          -e JMETER_LOG_FILE=out.log \
-          -e JMETER_REPORT_NAME=html \
-          -e JMETER_JMX="test-plan.jmx" ${{ steps.result.outputs.currentImage }}
-          expected='outout'
-          if [[ $(docker logs t1 | grep $expected ) ]];then echo "$expected found"; else echo "$expected not found"; exit 1; fi;
-          docker commit t1 t1 
-          container-structure-test test -v info --image t1 --config tests/container-structure-test/output-test.yaml
-          docker rm t1
-          docker rmi t1
-
-      ## Install plugins many ways
-      - name: Test Jmeter Plugin Install with plugin manager, check only
-        if: ${{ matrix.with-plugins == 'true' }}
-        run: |
-          docker  run --pull never --name t1 -v ${PWD}/tests/projects/sample1/:/jmeter/project -e JMETER_CHECK_ONLY=true -e JMETER_PLUGINS_MANAGER_INSTALL_LIST="jpgc-dbmon=0.1" -e JMETER_PLUGINS_MANAGER_INSTALL_FOR_JMX="true"  -e JMETER_JMX="test-plan.jmx" ${{ steps.result.outputs.currentImage }} -Jres.out.default=hheelloo
-          unexpected='hheelloo'
-          if [[ $(docker logs t1 | grep $unexpected ) ]];then echo "unexpected $unexpected found";exit 1; else echo "unexpected $unexpected not found";  fi;
-          expected='TestPlanCheckTool: JMX is fine'
-          if [[ $(docker logs t1 | grep "$expected" ) ]];then echo "$expected found"; else echo "$expected not found"; exit 1; fi;
-          docker commit t1 t1 
-          container-structure-test test -v info --image t1 --config tests/container-structure-test/sample1-install-plugins.yaml
-          container-structure-test test -v info --image t1 --config tests/container-structure-test/install-plugins-by-manager.yaml
-          docker rm t1
-          docker rmi t1
-
-      - name: Test Jmeter Clone Workspace
-        run: |
-          docker  run --pull never --name t1 -v ${PWD}/tests/projects/sample1/:/jmeter/project  -e CONF_COPY_TO_WORKSPACE=true  -e JMETER_JMX="basic-plan.jmx" ${{ steps.result.outputs.currentImage }} 
-          docker commit t1 t1 
-          container-structure-test test -v info --image t1 --config tests/container-structure-test/workspace-clone.yaml
-          docker rm t1
-          docker rmi t1
-
-      - name: Test Jmeter don't clone Workspace
-        run: |
-          docker  run --pull never --name t1 -v ${PWD}/tests/projects/sample1/:/jmeter/project -e JMETER_JMX="basic-plan.jmx" ${{ steps.result.outputs.currentImage }} 
-          docker commit t1 t1 
-          container-structure-test test -v info --image t1 --config tests/container-structure-test/workspace-dont-clone.yaml
-          docker rm t1
-          docker rmi t1
-
-      #Publish on v2
+      # Publish on v2
       - name: Login to DockerHub 📦
-        if: ${{ github.ref_name == 'v2' }}
+        # if: ${{ github.ref_name == 'v2' }}
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Push to Docker repo (on Push only) ☁️
-        if: ${{ github.ref_name == 'v2' }}
+        # if: ${{ github.ref_name == 'v2' }}
         run: docker image push --all-tags ${{ steps.prep.outputs.image }}

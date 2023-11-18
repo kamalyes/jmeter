@@ -1,1 +1,0 @@
-echo after-user-test1

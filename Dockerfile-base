@@ -1,6 +1,6 @@
 ARG  JVM_VERSION=11.0.19_7-jre-alpine
 #use Maven image to install maven
-FROM maven:3.9-eclipse-temurin-11-alpine  as maven-install-build
+FROM maven:3.9-eclipse-temurin-11-alpine  AS maven-install-build
 
 # Use JVM base
 FROM eclipse-temurin:${JVM_VERSION}
@@ -78,7 +78,6 @@ ENV JOLOKIA_LIB $JOLOKIA_PATH/lib
 ENV CONF_WITH_JOLOKIA false
 #INPUT ENV
 
-
 COPY --from=maven-install-build /usr/share/maven $MAVEN_HOME
 
 COPY scripts  $SCRIPTS_PATH
@@ -90,7 +89,7 @@ ENV TZ ${TZ}
 
 ENV PATH "${SCRIPTS_PATH}:${SCRIPTS_PATH}/internal:${SCRIPTS_PATH}/internal/build:${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${JMETER_HOME}/bin:${PATH}"
 
-RUN    apk update \
+RUN  apk update \
 	&& apk upgrade \
 	&& apk add ca-certificates \
 	&& update-ca-certificates \
@@ -129,5 +128,5 @@ RUN    apk update \
 
 # Entrypoint has same signature as "jmeter" command
 WORKDIR	${JMETER_HOME}
-EXPOSE 1099 8778 50000 60000 
+EXPOSE 1099 8778 4000 60000 
 ENTRYPOINT ["entrypoint.sh"]

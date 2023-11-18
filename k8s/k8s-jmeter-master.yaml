@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jmeter-run
+  labels:
+    app: jmeter-run
+data:
+  run.sh: |
+    #!/bin/bash
+    rm -rf /jmeter/jtl/test.jtl /jmeter/web/*
+    jmeter -Dserver.rmi.ssl.disable=true -n -t /jmeter/jmx/test.jmx -l /jmeter/jtl/test.jtl -e -o /jmeter/web/ \
+      -R `getent ahostsv4 jmeter-slaves-svc | cut -d' ' -f1 | sort -u | awk -v ORS=, '{print $1}' | sed 's/,$//'`
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jmeter-master
+  labels:
+    jmeter_mode: master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      jmeter_mode: master
+  template:
+    metadata:
+      labels:
+        jmeter_mode: master
+    spec:
+      containers:
+      - name: jmmaster
+        image: kamalyes/jmeter:5.5-plugins-11-jdk
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: TZ
+            value: Asia/Shanghai       
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/bash","-c","mkdir -p /jmeter/{jmx,jtl,web}"]
+        command: [ "/bin/bash", "-c", "--" ]
+        args: [ "while true; do sleep 30; done;" ]
+        ports:
+        - containerPort: 60000
+        resources:
+          limits:
+            cpu: 2
+          requests:
+            cpu: 0.5
+            memory: 0.5Gi
+        volumeMounts:
+          - name: jmeter-cm
+            mountPath: /run.sh
+            subPath: run.sh
+          - name: shared-data
+            mountPath: /jmeter/web
+      - name: nginx
+        image: nginx:stable-alpine
+        readinessProbe:
+          tcpSocket:
+            port: 80
+          initialDelaySeconds: 5      # 延迟加载时间
+          periodSeconds: 10           # 重试时间间隔
+          failureThreshold: 6         # 不健康阈值       
+        volumeMounts:
+          - name: shared-data
+            mountPath: /usr/share/nginx/html
+      volumes:
+      - name: jmeter-cm
+        configMap:
+         name: jmeter-run
+      - name: shared-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jmeter-nginx
+  namespace: default
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30080
+  selector:
+    jmeter_mode: master 
