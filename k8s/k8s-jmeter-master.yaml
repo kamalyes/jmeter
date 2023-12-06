@@ -8,7 +8,7 @@ data:
   run.sh: |
     #!/bin/bash
     rm -rf /jmeter/jtl/test.jtl /jmeter/web/*
-    jmeter -Dserver.rmi.ssl.disable=true -n -t /jmeter/jmx/test.jmx -l /jmeter/jtl/test.jtl -e -o /jmeter/web/ \
+    jmeter -Dserver.rmi.ssl.disable=true -DthreadNum=120 -DloopNum=1 -DrampUpTime=1 -DtimeOut=500 -n -t /jmeter/jmx/test.jmx -l /jmeter/jtl/test.jtl -e -o /jmeter/web/ \
       -R `getent ahostsv4 jmeter-slaves-svc | cut -d' ' -f1 | sort -u | awk -v ORS=, '{print $1}' | sed 's/,$//'`
 ---
 apiVersion: apps/v1

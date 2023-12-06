@@ -9,7 +9,6 @@
       <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="用户定义的变量" enabled="true">
         <collectionProp name="Arguments.arguments"/>
       </elementProp>
-      <stringProp name="TestPlan.user_define_classpath">D:\Program Files\ApacheJmeter5.6.2\lib\ext\fastjson-1.2.83.jar,D:\Program Files\ApacheJmeter5.6.2\lib\json-20230227.jar</stringProp>
     </TestPlan>
     <hashTree>
       <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="Jmeter 运行环境变量" enabled="true">
