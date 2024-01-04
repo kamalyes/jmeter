@@ -1,16 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  namespace: kube-jmeter
   name: jmeter-slaves
   labels:
     jmeter_mode: slave
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       jmeter_mode: slave
   template:
     metadata:
+      namespace: kube-jmeter
       labels:
         jmeter_mode: slave
     spec:
@@ -55,6 +57,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  namespace: kube-jmeter
   name: jmeter-slaves-svc
   labels:
     jmeter_mode: slave

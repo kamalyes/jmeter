@@ -29,5 +29,29 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/kg.apc/jmeter-plugins-standard -->
+    <dependency>
+        <groupId>kg.apc</groupId>
+        <artifactId>jmeter-plugins-standard</artifactId>
+        <version>1.4.0</version>
+        <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/kg.apc/jmeter-plugins-extras -->
+    <dependency>
+        <groupId>kg.apc</groupId>
+        <artifactId>jmeter-plugins-extras</artifactId>
+        <version>1.4.0</version>
+        <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
   </dependencies>
 </project>

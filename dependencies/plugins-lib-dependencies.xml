@@ -17,11 +17,12 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/kg.apc/jmeter-plugins-cmn-jmeter -->
     <dependency>
-      <groupId>kg.apc</groupId>
-      <artifactId>jmeter-plugins-cmn-jmeter</artifactId>
-      <version>0.7</version>
-      <exclusions>
+        <groupId>kg.apc</groupId>
+        <artifactId>jmeter-plugins-cmn-jmeter</artifactId>
+        <version>0.7</version>
+        <exclusions>
         <exclusion>
           <groupId>*</groupId>
           <artifactId>*</artifactId>
